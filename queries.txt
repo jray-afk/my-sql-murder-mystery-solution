@@ -1,0 +1,171 @@
+# get the crime scene report of the murder on the 15th of January 2018 in SQL City
+SELECT *
+FROM crime_scene_report
+WHERE type = "murder"
+AND city = "SQL City"
+AND date = 20180115
+
+# The crime scene report describes 2 witnesses.
+# Witnesses: get all people whose address_street_name contains "Northwestern Dr" or "Franklin Ave"
+SELECT *
+FROM person
+WHERE INSTR(address_street_name, "Northwestern")
+OR INSTR(address_street_name, "Franklin")
+
+# 1st witness lives at the last (max address_number) house on Northwestern
+SELECT *
+FROM person
+WHERE INSTR(address_street_name, "Northwestern")
+AND address_number = (
+  SELECT max(address_number)
+  FROM person
+  WHERE INSTR(address_street_name, "Northwestern")
+)
+
+
+# 2nd witness Annabel lives on Franklin
+SELECT *
+FROM person
+WHERE INSTR(address_street_name, "Franklin")
+AND INSTR(name, "Annabel")
+
+
+# union the two witnesses
+SELECT *
+FROM person
+WHERE INSTR(address_street_name, "Northwestern")
+AND address_number = (
+  SELECT max(address_number)
+  FROM person
+  WHERE INSTR(address_street_name, "Northwestern")
+)
+
+UNION
+
+SELECT *
+FROM person
+WHERE INSTR(address_street_name, "Franklin")
+AND INSTR(name, "Annabel")
+
+
+# now that we have the two witnesses, get their interviews
+SELECT *
+FROM interview
+WHERE person_id IN (
+  SELECT id
+  FROM person
+  WHERE INSTR(address_street_name, "Northwestern")
+  AND address_number = (
+	SELECT max(address_number)
+	FROM person
+	WHERE INSTR(address_street_name, "Northwestern")
+  )
+
+  UNION
+
+  SELECT id
+  FROM person
+  WHERE INSTR(address_street_name, "Franklin")
+  AND INSTR(name, "Annabel")
+)
+
+
+# From the witnesses interviews, the killer works out at the "Get Fit Now Gym".
+# The killer's membership number starts with 48Z. They are a gold member.
+SELECT *
+FROM get_fit_now_member
+JOIN person ON person.id = get_fit_now_member.person_id
+WHERE membership_status = "gold"
+AND INSTR(get_fit_now_member.id, "48Z")
+
+
+# This leaves us with 2 possible people from the gym's data who could be the killer.
+# The killer's license plate includes H42W.
+SELECT *
+FROM get_fit_now_member
+JOIN person ON person.id = get_fit_now_member.person_id
+JOIN drivers_license ON drivers_license.id = person.license_id
+WHERE membership_status = "gold"
+AND INSTR(get_fit_now_member.id, "48Z")
+AND INSTR(plate_number, "H42W")
+
+
+# From this we can see that the only possible suspect with all these details
+# is the person by the name of Jeremy Bowers (person_id # 67318).
+# Let's check the solution...
+INSERT INTO solution VALUES (1, 'Jeremy Bowers');
+SELECT value FROM solution;
+
+
+# Turns out there's more to this story... let's get Jeremy Bowers' interview transcript.
+SELECT *
+FROM interview
+WHERE person_id = 67318
+
+
+# Jeremy was only the hit man! The payer is a woman with a large income,
+# between 65" and 67", red hair, drives a Tesla Model S. She attended
+# the SQL Symphony Concert 3 times in December 2017. Let's first get people
+# who match the physical description:
+SELECT *
+FROM person
+JOIN drivers_license ON drivers_license.id = person.license_id
+WHERE hair_color = "red"
+AND car_make = "Tesla"
+AND car_model = "Model S"
+AND height < 67
+AND height > 65
+AND gender = "female"
+
+
+# Let's see if one of them has a large income
+SELECT *
+FROM person
+JOIN drivers_license ON drivers_license.id = person.license_id
+JOIN income ON income.ssn = person.ssn
+WHERE hair_color = "red"
+AND car_make = "Tesla"
+AND car_model = "Model S"
+AND height < 67
+AND height > 65
+AND gender = "female"
+ORDER BY annual_income DESC
+
+# We only have data for the income of one of them:
+# Miranda Priestly has a relatively large annual income of $310k.
+# However, let's not rule out the other suspect. Let's first check
+# if either of the two has been to the SQL Symphony concert 3 times
+# in December 2017.
+SELECT *
+FROM facebook_event_checkin
+AND event_name = "SQL Symphony Concert"
+WHERE INSTR(CAST (date AS text), "201712")
+AND person_id IN (
+  SELECT person.id
+  FROM person
+  JOIN drivers_license ON drivers_license.id = person.license_id
+  WHERE hair_color = "red"
+  AND car_make = "Tesla"
+  AND car_model = "Model S"
+  AND height < 67
+  AND height > 65
+  AND gender = "female"
+)
+
+# Looks like the only person who went to the concert 3 times
+# in December 2017 is person by the ID of 99716,
+# who again has the name of Miranda Priestly. We solved it!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
